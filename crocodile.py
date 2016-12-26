@@ -4,6 +4,32 @@ import collections as co
 import copy as copy
 
 
+def cardify(num):
+    if num == 13:
+        return 'K'
+    elif num == 12:
+        return 'Q'
+    elif num == 11:
+        return 'J'
+    elif num == 1:
+         return 'A'
+    else:
+        return str(num)
+
+
+def decardify(name):
+    if name == 'K' or name == 'k':
+        return 13
+    elif name == 'Q' or name == 'q':
+        return 12
+    elif name == 'J' or name == 'j':
+        return 11
+    elif name == 'A' or name == 'a':
+         return 1
+    else:
+        return int(name)
+
+
 def contains_sublist(lst, sublst):
     n = len(sublst)
     return any((sublst == lst[i:i+n]) for i in iter(range((len(lst)-n+1))))
@@ -20,7 +46,11 @@ def score_hand(hand, verbose=False):
     pairscore = sum(map(lambda p: 2*int(p[0] == p[1]), it.combinations(hand, 2)))
     for pair in it.combinations(hand, 2):
         if pair[0] == pair[1]:
-            pairscores.append(pair)
+            pairscores.append(list(pair))
+    for pair in pairscores:
+        for i in np.arange(0,len(pair)):
+            print(pair[i])
+            pair[i] = cardify(pair[i])
     scores['pairs'] = pairscores
 
     fifteenscores = []
@@ -30,8 +60,11 @@ def score_hand(hand, verbose=False):
             npcombo = np.array(combo)
             npcombo[np.where(npcombo > 10)] = 10
             if np.sum(npcombo) == 15:
-                fifteenscores.append(combo)
+                fifteenscores.append(list(combo))
             fifteenscore += 2 * int(np.sum(npcombo) == 15)
+    for fifteen in fifteenscores:
+        for i in np.arange(0,len(fifteen)):
+            fifteen[i] = cardify(fifteen[i])
     scores['15s'] = fifteenscores
 
     rundict = {}
@@ -46,7 +79,7 @@ def score_hand(hand, verbose=False):
                 if idx == runlength-2:
                     isrun = True
             if isrun:
-                ncardruns.append(sequence)
+                ncardruns.append(list(sequence))
         if ncardruns:
             rundict[runlength] = ncardruns
 
@@ -66,26 +99,28 @@ def score_hand(hand, verbose=False):
         for run in value:
             if run:
                 runscore += length
+                for i in np.arange(0,len(run)):
+                    run[i] = cardify(run[i])
                 runscores.append(run)
     scores['runs'] = runscores
 
     totalscore = pairscore + fifteenscore + runscore
 
+    desc = ''
     if verbose:
-        print('\nhand:', hand, '\n')
-        print('pairs: ', pairscore)
-        print('15s  : ', fifteenscore)
-        print('runs : ', runscore)
-        print('total: ', totalscore, 'points\n')
+        desc += 'total: ' + str(totalscore) + ' points\n\n'
+        desc += 'from pairs: ' + str(pairscore) + '\n'
+        desc += 'from 15s  : ' + str(fifteenscore) + '\n'
+        desc += 'from runs : ' + str(runscore) + '\n\n'
 
         for item in scores.items():
-            print(item)
+            desc += str(item) + '\n'
 
-    return totalscore, pairscore, fifteenscore, runscore
+    return totalscore, pairscore, fifteenscore, runscore, desc
 
 
 def unit_test(hand, tsx, psx, fsx, rsx, testname):
-    ts, ps, fs, rs = score_hand(hand, False)
+    ts, ps, fs, rs, desc = score_hand(hand, False)
     status = ts == tsx and ps == psx and fs == fsx and rs == rsx
     if testname:
         if status:
@@ -144,17 +179,25 @@ def run_unit_tests():
     return ok
 
 
-def card_to_remove(deal, numtogive):
-    print('dealt the hand:', deal, '\n')
+def card_to_remove(deal, startercard, numtogive):
+    desc = ''
     giveupdict = {}
-    for cards in it.combinations(deal, numtogive):
-        hand = copy.deepcopy(deal)
-        for card in cards:
-            hand.remove(card)
-        ts, ps, fs, rs = score_hand(hand, False)
-        giveupdict[cards] = ts
+    dealplusstarter = copy.deepcopy(deal)
+    dealplusstarter.append(startercard)
+    for cards in it.combinations(dealplusstarter, numtogive):
+        if startercard not in cards:
+            hand = copy.deepcopy(dealplusstarter)
+            for card in cards:
+                hand.remove(card)
+            ts, ps, fs, rs, desc = score_hand(hand, False)
+            giveupdict[cards] = ts
 
     sortedlist = sorted(giveupdict.items(), key=lambda x: x[1])
 
     for (giveup, points) in reversed(sortedlist):
-        print('give up', giveup, 'to get', points, 'points')
+        gul = list(giveup)
+        for i in np.arange(0, len(gul)):
+            gul[i] = cardify(gul[i])
+        desc += 'give up ' + str(gul) + ' to get ' + str(points) + ' points\n'
+
+    return desc
